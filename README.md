@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The purpose of the `file-generator` is to generate artificial structured data for testing
+The purpose of the `file-generator` is to generate artificial structured data for testing,
 and store them as files (objects) in the Oracle Cloud Infrastructure (OCI) Object Storage
 bucket. Files may be used for testing of data loading, data management, and data access.
 
@@ -11,13 +11,65 @@ bucket. Files may be used for testing of data loading, data management, and data
 
 The `file-generator` supports the following scenarios:
 
-* __json__ - Data is generated as JSON Lines format, with single file containing one or
+* __json__ - Data is generated in JSON Lines format, with single file containing one or
 more JSON documents stored as text and separated by newline.
+
+
+## Generator
+
+The `file-generator` is a single threaded Python3 program `file-gen.py` that generates
+data and stores them in OCI Object Storage in the format specified by parameter
+`scenario`.
+
+* The program loops over dates, starting from `fromdate` and finishing with `todate`.
+* For every date, it generates one or more files. Number of files is random, between `minfiles` and `maxfiles`.
+* Every file contains one or more documents. Number of documents is random, between `mindocs` and `maxdocs`.
+* Size of a single document is determined by number of lines, randomly generated between `minlines` and `maxlines`.
+
+
+## Object Names
+
+Names of generated objects are created by using the `pattern` parameter and applying the
+following substitutions:
+
+* `${date}` is substituted by date in `%Y%0m%0d` format.
+* `${time}` is substituted by time in `%H%M%S` format.
+* `${microseconds}` is substituted by microseconds in `%f` format.
+* `${timestamp}` is substituted by timestamp in `%Y%0m%0d%H%M%S%f` format.
+* `${number}` is substituted by the number of file in the day (starting from 1).
+* `${uuid}` is substituted by unique identifier generated as `uuid.uuid4()`.
+
+
+## Parameters
+
+The program `file-gen.py` is parameterized by the following parameters:
+
+```
+$ python file-gen.py -h
+file-gen.py -s <scenario> -f <fromdate> -t <todate> -x <minfiles> -y <maxfiles> -k <mindocs> -l <maxdocs> -e <sleep> -n <namespace> -b <bucket> -p <pattern>
+
+   Options:
+   -h, --help             Print help
+   -s, --scenario         Scenario (json) [mandatory]
+   -f, --fromdate         Start date in YYYY-MM-DD format [mandatory]
+   -t, --todate           End date in YYYY-MM-DD format [mandatory]
+   -x, --minfiles         Minimum number of files in one day [1]
+   -y, --maxfiles         Maximum number of files in one day [1]
+   -k, --mindocs          Minimum number of documents in one file [1]
+   -l, --maxdocs          Maximum number of documents in one file [1]
+   -v, --minlines         Minimum number of lines in one document[100]
+   -w, --maxlines         Maximum number of lines in one document[2000]
+   -e, --sleep            Sleep time in seconds between files [0]
+   -n, --namespace        Tenancy namespace [mandatory]
+   -b, --bucket           Name of target bucket [mandatory]
+   -p, --pattern          Object name pattern [mandatory]
+       --loglevel         Log level [DEBUG, INFO, WARNING, ERROR, CRITICAL], default is INFO
+```
 
 
 ## Data
 
-Generated data simulate invoice documents, with products, quantities, and prices for
+Generated data simulates invoice documents, with products, quantities, and prices for
 products or services. Example of a single document looks as follows:
 
 ```
@@ -87,58 +139,6 @@ products or services. Example of a single document looks as follows:
 ```
 
 
-## Generator
-
-The `file-generator` is a single threaded Python3 program `file-gen.py` that generates
-data and stores them in OCI Object Storage in the format specified by parameter
-`scenario`.
-
-* The program loops over dates, starting from `fromdate` and finishing with `todate`.
-* For every date, it generates one or more files. Number of files is random, between `minfiles` and `maxfiles`.
-* Every file contains one or more documents. Number of documents is random, between `mindocs` and `maxdocs`.
-* Size of a single document is determined by number of lines, randomly generated between `minlines` and `maxlines`.
-
-
-## Object Names
-
-Names of generated objects are created by using the `pattern` parameter and applying the
-following substitutions:
-
-* `${date}` is substituted by date in `%Y%0m%0d` format.
-* `${time}` is substituted by time in `%H%M%S` format.
-* `${microseconds}` is substituted by microseconds in `%f` format.
-* `${timestamp}` is substituted by timestamp in `%Y%0m%0d%H%M%S%f` format.
-* `${number}` is substituted by the number of file in the day (starting from 1).
-* `${uuid}` is substituted by unique identifier generated as `uuid.uuid4()`.
-
-
-## Parameters
-
-The program `file-gen.py` is parameterized by the following parameters:
-
-```
-$ python file-gen.py -h
-file-gen.py -s <scenario> -f <fromdate> -t <todate> -x <minfiles> -y <maxfiles> -k <mindocs> -l <maxdocs> -e <sleep> -n <namespace> -b <bucket> -p <pattern>
-
-   Options:
-   -h, --help             Print help
-   -s, --scenario         Scenario (json) [mandatory]
-   -f, --fromdate         Start date in YYYY-MM-DD format [mandatory]
-   -t, --todate           End date in YYYY-MM-DD format [mandatory]
-   -x, --minfiles         Minimum number of files in one day [1]
-   -y, --maxfiles         Maximum number of files in one day [1]
-   -k, --mindocs          Minimum number of documents in one file [1]
-   -l, --maxdocs          Maximum number of documents in one file [1]
-   -v, --minlines         Minimum number of lines in one document[100]
-   -w, --maxlines         Maximum number of lines in one document[2000]
-   -e, --sleep            Sleep time in seconds between files [0]
-   -n, --namespace        Tenancy namespace [mandatory]
-   -b, --bucket           Name of target bucket [mandatory]
-   -p, --pattern          Object name pattern [mandatory]
-       --loglevel         Log level [DEBUG, INFO, WARNING, ERROR, CRITICAL], default is INFO
-```
-
-
 ## Output
 
 The program output is a JSON document with statistics describing the generated data.
@@ -160,7 +160,6 @@ The program output is a JSON document with statistics describing the generated d
   "size_bytes": 28946897924,
   "avg_document_size_bytes": 971405.0110406389
 }
-
 ```
 
 
@@ -169,7 +168,7 @@ The program output is a JSON document with statistics describing the generated d
 Before running the `file-generator`, ensure the following prerequisites are met:
 
 * Compute instance with Python3 (tested with 3.9), OCI CLI and Python `oci` package.
-* Network connectivity from the Compute instance to the Object Storage API.
+* Network connectivity from the Compute instance to the OCI  Object Storage API.
 * Configured `~/.oci/config` with API Key to connect to OCI API with Python SDK. Note the `file-gen.py` currently does not support instance principal authentication.
 
 
